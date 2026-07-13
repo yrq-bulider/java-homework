@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class NormalStore {
     private final ConcurrentHashMap<String, Entry> data = new ConcurrentHashMap<>();
     private PersistentStore persistentStore;
+    private boolean transientMode;
 
     public NormalStore() {}
 
@@ -21,10 +22,14 @@ public class NormalStore {
         this.persistentStore = ps;
     }
 
+    public void setTransient(boolean t) {
+        this.transientMode = t;
+    }
+
     public void set(String key, String value, long ttlSeconds) {
         long now = System.currentTimeMillis();
         long expireAt = ttlSeconds > 0 ? now + ttlSeconds * 1000L : 0L;
-        if (persistentStore != null) {
+        if (persistentStore != null && !transientMode) {
             try { persistentStore.appendSet(key, value, expireAt); }
             catch (IOException e) { throw new RuntimeException("persist failed: " + e.getMessage(), e); }
         }
@@ -43,7 +48,7 @@ public class NormalStore {
 
     public boolean del(String key) {
         Entry prev = data.remove(key);
-        if (prev != null && persistentStore != null) {
+        if (prev != null && persistentStore != null && !transientMode) {
             try { persistentStore.appendDel(key); }
             catch (IOException e) { throw new RuntimeException("persist failed: " + e.getMessage(), e); }
         }
@@ -54,7 +59,7 @@ public class NormalStore {
         if (kvs == null || kvs.length % 2 != 0) return 0;
         long now = System.currentTimeMillis();
         long expireAt = ttlSeconds > 0 ? now + ttlSeconds * 1000L : 0L;
-        if (persistentStore != null) {
+        if (persistentStore != null && !transientMode) {
             try { persistentStore.appendMset(kvs, expireAt); }
             catch (IOException e) { throw new RuntimeException("persist failed: " + e.getMessage(), e); }
         }
@@ -68,7 +73,7 @@ public class NormalStore {
 
     public int mdel(String[] keys) {
         if (keys == null) return 0;
-        if (persistentStore != null) {
+        if (persistentStore != null && !transientMode) {
             try { persistentStore.appendMdel(keys); }
             catch (IOException e) { throw new RuntimeException("persist failed: " + e.getMessage(), e); }
         }
@@ -83,7 +88,7 @@ public class NormalStore {
     }
 
     public void flush() {
-        if (persistentStore != null) {
+        if (persistentStore != null && !transientMode) {
             try { persistentStore.appendFlush(); }
             catch (IOException e) { throw new RuntimeException("persist failed: " + e.getMessage(), e); }
         }

@@ -161,8 +161,13 @@ public class PersistentStore implements AutoCloseable {
                 })
                 .collect(Collectors.toList());
         }
-        for (Path f : files) {
-            applyFileToStore(f, store);
+        store.setTransient(true);
+        try {
+            for (Path f : files) {
+                applyFileToStore(f, store);
+            }
+        } finally {
+            store.setTransient(false);
         }
     }
 
