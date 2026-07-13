@@ -31,4 +31,55 @@ public class NormalStoreTest {
         Thread.sleep(1100);
         assertEquals("v2", s.get("k"));
     }
+
+    @Test public void msetInsertsAll() {
+        NormalStore s = new NormalStore();
+        int n = s.mset(new String[]{"k1","v1","k2","v2"}, 0);
+        assertEquals(2, n);
+        assertEquals("v1", s.get("k1"));
+        assertEquals("v2", s.get("k2"));
+    }
+
+    @Test public void msetOddArgsIsZero() {
+        NormalStore s = new NormalStore();
+        assertEquals(0, s.mset(new String[]{"k1","v1","k2"}, 0));
+    }
+
+    @Test public void mdelDeletesAll() {
+        NormalStore s = new NormalStore();
+        s.set("k1","v",0); s.set("k2","v",0); s.set("k3","v",0);
+        int n = s.mdel(new String[]{"k1","k2","missing"});
+        assertEquals(2, n);
+        assertNull(s.get("k1"));
+        assertNull(s.get("k2"));
+        assertNotNull(s.get("k3"));
+    }
+
+    @Test public void flushClearsAll() {
+        NormalStore s = new NormalStore();
+        s.set("k1","v",0); s.set("k2","v",0);
+        s.flush();
+        assertEquals(0, s.size());
+    }
+
+    @Test public void keysListsAll() {
+        NormalStore s = new NormalStore();
+        s.set("user:001","v",0); s.set("user:002","v",0); s.set("other","v",0);
+        java.util.List<String> all = s.keys("*");
+        assertEquals(3, all.size());
+    }
+
+    @Test public void keysWithPattern() {
+        NormalStore s = new NormalStore();
+        s.set("user:001","v",0); s.set("user:002","v",0); s.set("other","v",0);
+        java.util.List<String> matched = s.keys("user:*");
+        assertEquals(2, matched.size());
+    }
+
+    @Test public void existsReturnsBool() {
+        NormalStore s = new NormalStore();
+        s.set("k","v",0);
+        assertTrue(s.exists("k"));
+        assertFalse(s.exists("nope"));
+    }
 }
