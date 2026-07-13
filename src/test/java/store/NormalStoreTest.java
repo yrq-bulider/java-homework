@@ -55,6 +55,35 @@ public class NormalStoreTest {
         assertNotNull(s.get("k3"));
     }
 
+    @Test public void mupdUpdatesExisting() {
+        NormalStore s = new NormalStore();
+        s.set("k1","v1",0); s.set("k2","v2",0);
+        int n = s.mupd(new String[]{"k1","new1","k2","new2"}, 0);
+        assertEquals(2, n);
+        assertEquals("new1", s.get("k1"));
+        assertEquals("new2", s.get("k2"));
+    }
+
+    @Test public void mupdSkipsNonExisting() {
+        NormalStore s = new NormalStore();
+        s.set("k1","v1",0);
+        int n = s.mupd(new String[]{"k1","new1","noExist","x"}, 0);
+        assertEquals(1, n);
+        assertEquals("new1", s.get("k1"));
+        assertNull(s.get("noExist"));
+    }
+
+    @Test public void mupdOddArgsIsZero() {
+        NormalStore s = new NormalStore();
+        assertEquals(0, s.mupd(new String[]{"k1","v1","k2"}, 0));
+    }
+
+    @Test public void mupdAllMissingReturnsZero() {
+        NormalStore s = new NormalStore();
+        int n = s.mupd(new String[]{"no1","v1","no2","v2"}, 0);
+        assertEquals(0, n);
+    }
+
     @Test public void flushClearsAll() {
         NormalStore s = new NormalStore();
         s.set("k1","v",0); s.set("k2","v",0);

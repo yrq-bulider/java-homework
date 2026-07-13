@@ -80,6 +80,20 @@ public class PersistentStore implements AutoCloseable {
         append(JsonUtil.toJson(op));
     }
 
+    public synchronized void appendMupd(String[] kvs, long expireAt) throws IOException {
+        List<Map<String,String>> items = new ArrayList<>();
+        for (int i = 0; i < kvs.length; i += 2) {
+            Map<String,String> m = new LinkedHashMap<>();
+            m.put("key", kvs[i]); m.put("value", kvs[i+1]);
+            items.add(m);
+        }
+        Map<String,Object> op = new LinkedHashMap<>();
+        op.put("op","MUPD"); op.put("items", items);
+        op.put("expireAt", expireAt);
+        op.put("ts", System.currentTimeMillis());
+        append(JsonUtil.toJson(op));
+    }
+
     public synchronized void appendFlush() throws IOException {
         Map<String,Object> op = new LinkedHashMap<>();
         op.put("op","FLUSH");
@@ -223,6 +237,20 @@ public class PersistentStore implements AutoCloseable {
                     @SuppressWarnings("unchecked")
                     List<String> keys = (List<String>) op.get("keys");
                     store.mdel(keys.toArray(new String[0]));
+                    break;
+                }
+                case "MUPD": {
+                    @SuppressWarnings("unchecked")
+                    List<Map<String,String>> items = (List<Map<String,String>>) op.get("items");
+                    long expireAt = ((Number) op.get("expireAt")).longValue();
+                    long ttl = (expireAt > 0) ? Math.max(1, (expireAt - now) / 1000) : 0;
+                    String[] kvs = new String[items.size() * 2];
+                    for (int i = 0; i < items.size(); i++) {
+                        Map<String,String> m = items.get(i);
+                        kvs[i*2] = m.get("key");
+                        kvs[i*2+1] = m.get("value");
+                    }
+                    store.mupd(kvs, ttl);
                     break;
                 }
                 case "FLUSH": store.flush(); break;

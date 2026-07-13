@@ -8,7 +8,7 @@ public final class Request {
 
     public Request(String verb, List<String> args) {
         this.verb = verb.toUpperCase();
-        this.args = List.copyOf(args);
+        this.args = java.util.Collections.unmodifiableList(new java.util.ArrayList<>(args));
     }
 
     public String verb()  { return verb; }

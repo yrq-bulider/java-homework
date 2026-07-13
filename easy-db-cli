@@ -1,0 +1,15 @@
+#!/bin/bash
+# easy-db CLI interactive tool wrapper
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+JAR_PATH="$SCRIPT_DIR/target/easy-db-server.jar"
+CLASSES_DIR="$SCRIPT_DIR/target/classes"
+
+if [ ! -f "$JAR_PATH" ]; then
+    echo "Building easy-db..." >&2
+    (cd "$SCRIPT_DIR" && mvn -q package -DskipTests) >&2
+fi
+
+CP="$CLASSES_DIR:$JAR_PATH"
+exec java -cp "$CP" client.cli.CliClient "$@"

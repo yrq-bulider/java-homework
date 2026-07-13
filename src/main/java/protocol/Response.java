@@ -3,7 +3,7 @@ package protocol;
 import java.util.List;
 
 public final class Response {
-    public enum Kind { OK, NIL, INTEGER, VALUE, ERROR }
+    public enum Kind { OK, NIL, INTEGER, VALUE, ERROR, MULTI }
 
     private final Kind kind;
     private final Object payload;
@@ -18,6 +18,7 @@ public final class Response {
     public static Response integer(int n)        { return new Response(Kind.INTEGER, n); }
     public static Response value(String s)       { return new Response(Kind.VALUE, s); }
     public static Response error(String msg)     { return new Response(Kind.ERROR, "(error) ERR " + msg); }
+    public static Response multi(List<String> lines) { return new Response(Kind.MULTI, lines); }
 
     public Kind kind() { return kind; }
 
@@ -28,8 +29,17 @@ public final class Response {
             case INTEGER: return "(integer) " + payload;
             case VALUE:   return quoteValue((String) payload);
             case ERROR:   return (String) payload;
+            case MULTI:   return multiToWire((List<String>) payload);
             default:      return "(error) ERR unknown response kind";
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static String multiToWire(List<String> lines) {
+        StringBuilder sb = new StringBuilder();
+        for (String line : lines) sb.append(quoteValue(line)).append('\n');
+        sb.append("*END");
+        return sb.toString();
     }
 
     private static String quoteValue(String s) {

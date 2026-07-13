@@ -37,6 +37,24 @@ public class SocketClient implements AutoCloseable {
         return in.readLine();
     }
 
+    /** Send one command line and read all lines until EOF marker or socket close. */
+    public String sendCommandMulti(String command) throws IOException {
+        if (socket == null) connect();
+        out.write(command);
+        out.newLine();
+        out.flush();
+        StringBuilder sb = new StringBuilder();
+        String line;
+        while ((line = in.readLine()) != null) {
+            if ("*END".equals(line)) {
+                sb.append(line);
+                break;
+            }
+            sb.append(line).append('\n');
+        }
+        return sb.toString();
+    }
+
     @Override
     public void close() {
         try { if (socket != null) socket.close(); } catch (IOException e) {
