@@ -11,4 +11,24 @@ public class NormalStoreTest {
     @Test public void getAfterDel()     { NormalStore s = new NormalStore(); s.set("k", "v", 0); s.del("k"); assertNull(s.get("k")); }
     @Test public void overwriteValue()  { NormalStore s = new NormalStore(); s.set("k", "v1", 0); s.set("k", "v2", 0); assertEquals("v2", s.get("k")); }
     @Test public void sizeReflectsKeys(){ NormalStore s = new NormalStore(); s.set("k1","v",0); s.set("k2","v",0); assertEquals(2, s.size()); }
+    @Test public void ttlExpires() throws InterruptedException {
+        NormalStore s = new NormalStore();
+        s.set("k", "v", 1);                       // 1 second TTL
+        assertEquals("v", s.get("k"));
+        Thread.sleep(1100);
+        assertNull(s.get("k"));
+    }
+    @Test public void ttlZeroIsForever() throws InterruptedException {
+        NormalStore s = new NormalStore();
+        s.set("k", "v", 0);
+        Thread.sleep(200);
+        assertEquals("v", s.get("k"));
+    }
+    @Test public void setNewTtlOverwrites() throws InterruptedException {
+        NormalStore s = new NormalStore();
+        s.set("k", "v", 1);
+        s.set("k", "v2", 0);                      // overwrite with no TTL
+        Thread.sleep(1100);
+        assertEquals("v2", s.get("k"));
+    }
 }
