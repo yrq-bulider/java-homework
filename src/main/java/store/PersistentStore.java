@@ -3,8 +3,11 @@ package store;
 import util.JsonUtil;
 import util.Logger;
 
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
@@ -17,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.zip.GZIPInputStream;
 
 public class PersistentStore implements AutoCloseable {
 
@@ -132,4 +136,95 @@ public class PersistentStore implements AutoCloseable {
 
     public Path dataDir() { return dataDir; }
     public Path activeFile() { return activeFile; }
+
+    /** Reads all .jsonl and .jsonl.gz files in dataDir, replays ops into the store.
+     *  Files are processed in sorted order: rotated-NNN.jsonl files first (by name), then active.jsonl last. */
+    public static void replay(Path dataDir, NormalStore store) throws IOException {
+        if (!Files.exists(dataDir)) return;
+        List<Path> files;
+        try (Stream<Path> s = Files.list(dataDir)) {
+            files = s
+                .filter(p -> {
+                    String n = p.getFileName().toString();
+                    return n.endsWith(".jsonl") || n.endsWith(".jsonl.gz");
+                })
+                .sorted((a, b) -> {
+                    // active.jsonl (and .gz variants) come last; everything else sorted lexicographically
+                    String an = a.getFileName().toString();
+                    String bn = b.getFileName().toString();
+                    boolean aActive = an.startsWith("active.");
+                    boolean bActive = bn.startsWith("active.");
+                    if (aActive && bActive) return 0;
+                    if (aActive) return 1;
+                    if (bActive) return -1;
+                    return an.compareTo(bn);
+                })
+                .collect(Collectors.toList());
+        }
+        for (Path f : files) {
+            applyFileToStore(f, store);
+        }
+    }
+
+    private static void applyFileToStore(Path f, NormalStore store) throws IOException {
+        InputStream raw = Files.newInputStream(f);
+        InputStream in;
+        if (f.getFileName().toString().endsWith(".gz")) {
+            in = new GZIPInputStream(raw);
+        } else {
+            in = raw;
+        }
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
+            String line;
+            long now = System.currentTimeMillis();
+            while ((line = reader.readLine()) != null) {
+                if (line.isEmpty()) continue;
+                applyLine(line, store, now);
+            }
+        }
+    }
+
+    private static void applyLine(String json, NormalStore store, long now) {
+        try {
+            Map<?,?> op = JsonUtil.fromJson(json, Map.class);
+            String name = (String) op.get("op");
+            if (name == null) return;
+            switch (name) {
+                case "SET": {
+                    String key = (String) op.get("key");
+                    String value = (String) op.get("value");
+                    long expireAt = ((Number) op.get("expireAt")).longValue();
+                    if (expireAt > 0 && now >= expireAt) break;     // skip expired
+                    long ttl = (expireAt > 0) ? Math.max(1, (expireAt - now) / 1000) : 0;
+                    store.set(key, value, ttl);
+                    break;
+                }
+                case "DEL":   store.del((String) op.get("key")); break;
+                case "MSET": {
+                    @SuppressWarnings("unchecked")
+                    List<Map<String,String>> items = (List<Map<String,String>>) op.get("items");
+                    long expireAt = ((Number) op.get("expireAt")).longValue();
+                    long ttl = (expireAt > 0) ? Math.max(1, (expireAt - now) / 1000) : 0;
+                    String[] kvs = new String[items.size() * 2];
+                    for (int i = 0; i < items.size(); i++) {
+                        Map<String,String> m = items.get(i);
+                        kvs[i*2] = m.get("key");
+                        kvs[i*2+1] = m.get("value");
+                    }
+                    store.mset(kvs, ttl);
+                    break;
+                }
+                case "MDEL": {
+                    @SuppressWarnings("unchecked")
+                    List<String> keys = (List<String>) op.get("keys");
+                    store.mdel(keys.toArray(new String[0]));
+                    break;
+                }
+                case "FLUSH": store.flush(); break;
+                default: Logger.warn("replay: unknown op " + name);
+            }
+        } catch (Exception e) {
+            Logger.warn("replay: bad line skipped: " + e.getMessage());
+        }
+    }
 }

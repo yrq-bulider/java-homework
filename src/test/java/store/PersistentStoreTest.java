@@ -8,6 +8,8 @@ import util.JsonUtil;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.*;
@@ -54,5 +56,62 @@ public class PersistentStoreTest {
         assertEquals("MSET",   JsonUtil.fromJson(lines[2], Map.class).get("op"));
         assertEquals("MDEL",   JsonUtil.fromJson(lines[3], Map.class).get("op"));
         assertEquals("FLUSH",  JsonUtil.fromJson(lines[4], Map.class).get("op"));
+    }
+
+    @Test public void recoveryReplaysAllFiles() throws Exception {
+        File dir = tmp.newFolder("data2");
+        // Write 3 ops, close
+        try (PersistentStore ps = new PersistentStore(dir.toPath())) {
+            ps.appendSet("k1","v1",0);
+            ps.appendSet("k2","v2",0);
+            ps.appendDel("k1");
+        }
+        // Recovery: should produce k2 only
+        NormalStore store = new NormalStore();
+        PersistentStore.replay(dir.toPath(), store);
+        assertNull(store.get("k1"));
+        assertEquals("v2", store.get("k2"));
+    }
+
+    @Test public void recoveryAcrossRotatedFiles() throws Exception {
+        File dir = tmp.newFolder("data3");
+        try (PersistentStore ps = new PersistentStore(dir.toPath())) {
+            ps.appendSet("a","1",0);
+            ps.appendSet("b","2",0);
+            ps.appendSet("c","3",0);
+        }
+        // Manually pre-create a rotated-001.jsonl with 2 ops, then active.jsonl with 3 ops
+        Path rotated = dir.toPath().resolve("rotated-001.jsonl");
+        Files.write(rotated, java.util.Arrays.asList(
+            "{\"op\":\"SET\",\"key\":\"k1\",\"value\":\"v1\",\"expireAt\":0,\"ts\":1}",
+            "{\"op\":\"SET\",\"key\":\"k2\",\"value\":\"v2\",\"expireAt\":0,\"ts\":2}"
+        ), StandardCharsets.UTF_8);
+        Path active = dir.toPath().resolve("active.jsonl");
+        Files.write(active, java.util.Arrays.asList(
+            "{\"op\":\"DEL\",\"key\":\"k1\",\"ts\":3}",
+            "{\"op\":\"FLUSH\",\"ts\":4}",
+            "{\"op\":\"SET\",\"key\":\"k3\",\"value\":\"v3\",\"expireAt\":0,\"ts\":5}"
+        ), StandardCharsets.UTF_8);
+
+        NormalStore store = new NormalStore();
+        PersistentStore.replay(dir.toPath(), store);
+        assertNull(store.get("k1"));
+        assertNull(store.get("k2"));      // FLUSH wiped
+        assertEquals("v3", store.get("k3"));
+    }
+
+    @Test public void recoveryIgnoresExpiredTtl() throws Exception {
+        File dir = tmp.newFolder("data4");
+        Path active = dir.toPath().resolve("active.jsonl");
+        long past = System.currentTimeMillis() - 1000;
+        Files.write(active, java.util.Arrays.asList(
+            "{\"op\":\"SET\",\"key\":\"old\",\"value\":\"x\",\"expireAt\":" + past + ",\"ts\":1}",
+            "{\"op\":\"SET\",\"key\":\"kept\",\"value\":\"y\",\"expireAt\":0,\"ts\":2}"
+        ), StandardCharsets.UTF_8);
+
+        NormalStore store = new NormalStore();
+        PersistentStore.replay(dir.toPath(), store);
+        assertNull(store.get("old"));
+        assertEquals("y", store.get("kept"));
     }
 }
