@@ -1,0 +1,17 @@
+#!/bin/bash
+# easy-db Shell wrapper (invokes ShellClient inside the project jar + classes).
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+JAR_PATH="$SCRIPT_DIR/target/easy-db-server.jar"
+CLASSES_DIR="$SCRIPT_DIR/target/classes"
+
+# If the JAR doesn't exist, build.
+if [ ! -f "$JAR_PATH" ]; then
+    echo "Building easy-db..." >&2
+    (cd "$SCRIPT_DIR" && mvn -q package -DskipTests) >&2
+fi
+
+# Prefer classes/ directory; fall back to shaded jar for gson dependency.
+CP="$CLASSES_DIR:$JAR_PATH"
+exec java -cp "$CP" client.shell.ShellClient "$@"
