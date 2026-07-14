@@ -38,7 +38,17 @@ public class NormalStore {
     public LSMTree lsmTree() { return lsmTree; }
 
     public void set(String key, String value, long ttlSeconds) {
-        if (lsmMode) { lsmTree.set(key, value, ttlSeconds); return; }
+        if (lsmMode) {
+            if (persistentStore != null && !transientMode) {
+                long now = System.currentTimeMillis();
+                long expireAt = ttlSeconds > 0 ? now + ttlSeconds * 1000L : 0L;
+                Entry.ValueType vt = detectValueType(value);
+                try { persistentStore.appendSet(key, value, vt, expireAt); }
+                catch (IOException e) { throw new RuntimeException("persist failed: " + e.getMessage(), e); }
+            }
+            lsmTree.set(key, value, ttlSeconds);
+            return;
+        }
         long now = System.currentTimeMillis();
         long expireAt = ttlSeconds > 0 ? now + ttlSeconds * 1000L : 0L;
         Entry.ValueType vt = detectValueType(value);
@@ -51,7 +61,16 @@ public class NormalStore {
 
     /** Set with explicit value type (used during replay). */
     public void setWithType(String key, String value, Entry.ValueType vt, long ttlSeconds) {
-        if (lsmMode) { lsmTree.set(key, value, ttlSeconds); return; }
+        if (lsmMode) {
+            if (persistentStore != null && !transientMode) {
+                long now = System.currentTimeMillis();
+                long expireAt = ttlSeconds > 0 ? now + ttlSeconds * 1000L : 0L;
+                try { persistentStore.appendSet(key, value, vt, expireAt); }
+                catch (IOException e) { throw new RuntimeException("persist failed: " + e.getMessage(), e); }
+            }
+            lsmTree.set(key, value, ttlSeconds);
+            return;
+        }
         long now = System.currentTimeMillis();
         long expireAt = ttlSeconds > 0 ? now + ttlSeconds * 1000L : 0L;
         if (persistentStore != null && !transientMode) {
@@ -82,7 +101,13 @@ public class NormalStore {
     }
 
     public boolean del(String key) {
-        if (lsmMode) return lsmTree.del(key);
+        if (lsmMode) {
+            if (persistentStore != null && !transientMode) {
+                try { persistentStore.appendDel(key); }
+                catch (IOException e) { throw new RuntimeException("persist failed: " + e.getMessage(), e); }
+            }
+            return lsmTree.del(key);
+        }
         Entry prev = data.remove(key);
         if (prev != null && persistentStore != null && !transientMode) {
             try { persistentStore.appendDel(key); }
@@ -94,6 +119,12 @@ public class NormalStore {
     public int mset(String[] kvs, long ttlSeconds) {
         if (kvs == null || kvs.length % 2 != 0) return 0;
         if (lsmMode) {
+            if (persistentStore != null && !transientMode) {
+                long now = System.currentTimeMillis();
+                long expireAt = ttlSeconds > 0 ? now + ttlSeconds * 1000L : 0L;
+                try { persistentStore.appendMset(kvs, expireAt); }
+                catch (IOException e) { throw new RuntimeException("persist failed: " + e.getMessage(), e); }
+            }
             int n = 0;
             for (int i = 0; i < kvs.length; i += 2) {
                 lsmTree.set(kvs[i], kvs[i+1], ttlSeconds);
@@ -118,6 +149,10 @@ public class NormalStore {
     public int mdel(String[] keys) {
         if (keys == null) return 0;
         if (lsmMode) {
+            if (persistentStore != null && !transientMode) {
+                try { persistentStore.appendMdel(keys); }
+                catch (IOException e) { throw new RuntimeException("persist failed: " + e.getMessage(), e); }
+            }
             int n = 0;
             for (String k : keys) if (lsmTree.del(k)) n++;
             return n;
@@ -135,6 +170,12 @@ public class NormalStore {
     public int mupd(String[] kvs, long ttlSeconds) {
         if (kvs == null || kvs.length % 2 != 0) return 0;
         if (lsmMode) {
+            if (persistentStore != null && !transientMode) {
+                long now = System.currentTimeMillis();
+                long expireAt = ttlSeconds > 0 ? now + ttlSeconds * 1000L : 0L;
+                try { persistentStore.appendMupd(kvs, expireAt); }
+                catch (IOException e) { throw new RuntimeException("persist failed: " + e.getMessage(), e); }
+            }
             int n = 0;
             for (int i = 0; i < kvs.length; i += 2) {
                 if (lsmTree.exists(kvs[i])) { lsmTree.set(kvs[i], kvs[i+1], ttlSeconds); n++; }
@@ -163,7 +204,14 @@ public class NormalStore {
     }
 
     public void flush() {
-        if (lsmMode) { lsmTree.flush(); return; }
+        if (lsmMode) {
+            if (persistentStore != null && !transientMode) {
+                try { persistentStore.appendFlush(); }
+                catch (IOException e) { throw new RuntimeException("persist failed: " + e.getMessage(), e); }
+            }
+            lsmTree.flush();
+            return;
+        }
         if (persistentStore != null && !transientMode) {
             try { persistentStore.appendFlush(); }
             catch (IOException e) { throw new RuntimeException("persist failed: " + e.getMessage(), e); }

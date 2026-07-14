@@ -49,13 +49,17 @@ public class EasyDbServer {
         ClusterManager clusterManager = null;
 
         if (lsmMode) {
-            // LSM-Tree mode
+            // LSM-Tree mode: replay WAL directly into the lsmTree-backed store so writes survive restart
             lsmTree = new LSMTree(dataDir, persistentStore);
-            PersistentStore.replay(dataDir, new NormalStore(persistentStore)); // replay into a temp to populate
+            NormalStore replayTarget = new NormalStore(lsmTree);
+            replayTarget.attachPersistentStore(persistentStore); // enable WAL writes in lsmMode
+            replayTarget.setTransient(true); // replay must not double-append to WAL
+            PersistentStore.replay(dataDir, replayTarget);
+            replayTarget.setTransient(false);
             lsmTree.loadExistingSSTables();
             lsmTree.startCompaction();
-            store = new NormalStore(lsmTree);
-            Logger.info("LSM-Tree mode. Starting compaction...");
+            store = replayTarget;
+            Logger.info("LSM-Tree mode. Replay complete. " + lsmTree.size() + " keys loaded.");
         } else {
             // Legacy mode: in-memory HashMap + JSON Lines
             store = new NormalStore(persistentStore);

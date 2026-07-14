@@ -73,7 +73,7 @@ public class RequestHandler implements Runnable {
         java.util.List<String> args = new java.util.ArrayList<>(req.args());
 
         switch (verb) {
-            case "GET": case "DEL": case "EXISTS":
+            case "GET": case "DEL": case "EXISTS": case "TYPE": case "RENAME":
                 if (!args.isEmpty() && !args.get(0).startsWith(currentCollection + ":"))
                     args.set(0, currentCollection + ":" + args.get(0));
                 break;
