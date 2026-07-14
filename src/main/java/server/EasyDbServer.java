@@ -29,7 +29,7 @@ import java.nio.file.Paths;
 public class EasyDbServer {
 
     public static void main(String[] args) throws Exception {
-        int port = 9090;
+        int port = 8080;
         Path dataDir = Paths.get("./data");
         boolean lsmMode = false;
         boolean clusterMode = false;

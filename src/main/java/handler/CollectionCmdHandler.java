@@ -13,7 +13,9 @@ import java.util.List;
  * COLLECTION command — exposes the Collection abstraction via the wire protocol.
  *
  * Sub-commands:
- *   COLLECTION LIST                       → list all collection names
+ *   COLLECTION LIST                       → list all collection names (declared + with data)
+ *   COLLECTION CREATE <name>              → declare a collection (idempotent, empty allowed)
+ *   COLLECTION DROP <name>                → delete collection declaration + all its keys
  *   COLLECTION KEYS <name>                → list keys in a collection (without prefix)
  *   COLLECTION GET <name> <key>           → get value from a collection
  *   COLLECTION SET <name> <key> <value>   → set value in a collection
@@ -24,7 +26,7 @@ public class CollectionCmdHandler implements CommandHandler {
 
     @Override public Response handle(Request req, NormalStore store) {
         if (req.argCount() < 1)
-            return Response.error("wrong number of arguments for 'COLLECTION' — usage: COLLECTION LIST|KEYS|GET|SET|DEL ...");
+            return Response.error("wrong number of arguments for 'COLLECTION' — usage: COLLECTION LIST|CREATE|DROP|KEYS|GET|SET|DEL ...");
 
         String sub = req.args().get(0).toUpperCase();
         CollectionManager cm = new CollectionManager(store);
@@ -35,6 +37,22 @@ public class CollectionCmdHandler implements CommandHandler {
                     List<String> cols = cm.listCollections();
                     if (cols.isEmpty()) return Response.multi(new ArrayList<String>());
                     return Response.multi(cols);
+                }
+                case "CREATE": {
+                    if (req.argCount() < 2)
+                        return Response.error("usage: COLLECTION CREATE <name>");
+                    String name = req.args().get(1);
+                    if (name.contains(":"))
+                        return Response.error("collection name cannot contain ':'");
+                    cm.createCollection(name);
+                    return Response.ok();
+                }
+                case "DROP": {
+                    if (req.argCount() < 2)
+                        return Response.error("usage: COLLECTION DROP <name>");
+                    String name = req.args().get(1);
+                    int removed = cm.dropCollection(name);
+                    return Response.integer(removed);
                 }
                 case "KEYS": {
                     if (req.argCount() < 2)
@@ -76,7 +94,7 @@ public class CollectionCmdHandler implements CommandHandler {
                 default:
                     return Response.error(
                             "unknown COLLECTION sub-command: " + sub
-                            + " — valid: LIST, KEYS, GET, SET, DEL");
+                            + " — valid: LIST, CREATE, DROP, KEYS, GET, SET, DEL");
             }
         } catch (NumberFormatException e) {
             return Response.error("value is not an integer or out of range");

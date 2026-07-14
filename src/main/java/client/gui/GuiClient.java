@@ -14,7 +14,7 @@ import java.io.IOException;
 public class GuiClient extends JFrame {
 
     private final JTextField hostField = new JTextField("127.0.0.1", 10);
-    private final JTextField portField = new JTextField("9090", 5);
+    private final JTextField portField = new JTextField("8080", 5);
     private final JTextField cmdField = new JTextField(40);
     private final JTextArea resultArea = new JTextArea(12, 50);
     private final JTable kvTable = new JTable(new DefaultTableModel(new String[]{"键", "值"}, 0));

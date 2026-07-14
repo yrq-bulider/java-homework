@@ -9,7 +9,7 @@ import java.util.List;
 public class ShellClient {
 
     private static String host = "127.0.0.1";
-    private static int port = 9090;
+    private static int port = 8080;
     private static boolean silent = false;
 
     public static void main(String[] args) {
@@ -61,6 +61,8 @@ public class ShellClient {
         return s;
     }
 
+    // NOTE: 命令列表的真相来源是 EasyDbServer.java 的 dispatcher.register(...) 链。
+    //       每加一个新 handler，请同步在这里补一行。
     private static void printHelp() {
         System.out.println("easy-db Shell Tool (Java)");
         System.out.println("Usage: easy-db [-s|--silent] [-h|--help] <command> [args...]");
@@ -72,13 +74,23 @@ public class ShellClient {
         System.out.println("Commands:");
         System.out.println("  set <key> <value> [ttlSeconds]   Store a key-value pair");
         System.out.println("  get <key>                        Get a key's value");
+        System.out.println("  mget <k1> <k2> ...               Get multiple values");
         System.out.println("  del <key>                        Delete a key");
         System.out.println("  exists <key>                     Check if a key exists");
+        System.out.println("  type <key>                       Get value type (string|list|map|none)");
         System.out.println("  keys [pattern]                   List keys matching pattern");
         System.out.println("  mset <k1> <v1> <k2> <v2> ...     Multi-set");
         System.out.println("  mdel <k1> <k2> ...               Multi-del");
         System.out.println("  mupd <k1> <v1> <k2> <v2> ...     Multi-update (only existing keys)");
+        System.out.println("  collection list                  List all collections");
+        System.out.println("  collection create <name>         Declare a collection (idempotent)");
+        System.out.println("  collection drop <name>           Delete a collection + all its keys");
+        System.out.println("  collection keys <name>           List keys in a collection");
+        System.out.println("  collection get <name> <key>      Get value from a collection");
+        System.out.println("  collection set <name> <k> <v>    Set value in a collection");
+        System.out.println("  collection del <name> <key>      Delete key from a collection");
         System.out.println("  flush                            Clear all data");
         System.out.println("  ping                             Health check");
+        System.out.println("  use <name> | use *               Switch current collection (no-op in shell: each cmd is a new connection)");
     }
 }
