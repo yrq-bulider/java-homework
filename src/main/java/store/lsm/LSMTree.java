@@ -117,15 +117,14 @@ public class LSMTree implements AutoCloseable {
                     try (SSTableWriter writer = new SSTableWriter(sstPath, im.size())) {
                         writer.writeAll(im.entryMap().entrySet());
                     }
-                    // GZIP-compress for archival
+                    // GZIP-compress a copy for archival; keep .sst for random access
                     SSTableWriter.compressToGzip(sstPath);
-                    Path gzPath = sstPath.resolveSibling(sstPath.getFileName() + ".gz");
-                    // Register in Level 0
-                    SSTableReader reader = new SSTableReader(gzPath);
+                    // Register in Level 0 using the uncompressed .sst
+                    SSTableReader reader = new SSTableReader(sstPath);
                     synchronized (levels) {
                         levels.get(0).add(reader);
                     }
-                    Logger.info("Flushed SSTable: " + gzPath.getFileName() + " (" + im.size() + " entries)");
+                    Logger.info("Flushed SSTable: " + sstPath.getFileName() + " (" + im.size() + " entries)");
                     immutableMemTables.remove(idx);
                     idx--;
                 } catch (Exception e) {
@@ -300,7 +299,10 @@ public class LSMTree implements AutoCloseable {
     /** Load existing SSTables from data directory (for restart recovery). */
     public void loadExistingSSTables() throws IOException {
         List<Path> sstFiles = Files.list(dataDir)
-                .filter(p -> p.getFileName().toString().matches("sst-\\d+\\.sst\\.gz"))
+                .filter(p -> {
+                    String n = p.getFileName().toString();
+                    return n.matches("sst-\\d+\\.sst") && !n.endsWith(".gz");
+                })
                 .sorted(Comparator.comparing(p -> p.getFileName().toString()))
                 .collect(Collectors.toList());
 

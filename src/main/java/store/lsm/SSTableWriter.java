@@ -7,6 +7,7 @@ import java.io.DataOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -105,15 +106,16 @@ public class SSTableWriter implements AutoCloseable {
         IndexEntry(String k, long o) { key = k; offset = o; }
     }
 
-    /** GZIP-compress an existing .sst file for archival. */
+    /** GZIP-compress an existing .sst file for archival. The original .sst is kept
+     *  for random access by SSTableReader (gzip streams can't be seek-read). */
     public static void compressToGzip(Path sstPath) throws IOException {
         Path gzPath = sstPath.resolveSibling(sstPath.getFileName() + ".gz");
+        if (Files.exists(gzPath)) return;
         try (java.io.FileInputStream fis = new java.io.FileInputStream(sstPath.toFile());
              GZIPOutputStream gos = new GZIPOutputStream(new FileOutputStream(gzPath.toFile()))) {
             byte[] buf = new byte[8192];
             int n;
             while ((n = fis.read(buf)) != -1) gos.write(buf, 0, n);
         }
-        java.nio.file.Files.delete(sstPath);
     }
 }
