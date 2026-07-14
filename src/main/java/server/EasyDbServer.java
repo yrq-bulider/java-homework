@@ -73,8 +73,9 @@ public class EasyDbServer {
             Logger.info("Cluster mode enabled. Node: " + clusterCfg.nodeId());
         }
 
-        CommandDispatcher dispatcher = new CommandDispatcher(store)
-                .register(new SetHandler())
+        CommandDispatcher dispatcher = new CommandDispatcher(store);
+        if (clusterManager != null) dispatcher.setClusterManager(clusterManager);
+        dispatcher.register(new SetHandler())
                 .register(new GetHandler())
                 .register(new MgetHandler())
                 .register(new DelHandler())

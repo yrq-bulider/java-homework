@@ -211,7 +211,6 @@ public class GuiClient extends JFrame {
                 typeCombo.setVisible(true);
                 break;
         }
-        pack();
     }
 
     private void hideAllSingle() {
@@ -338,7 +337,8 @@ public class GuiClient extends JFrame {
 
         try {
             boolean multi = verb.equals("KEYS") || verb.equals("MGET")
-                    || verb.startsWith("COLLECTION") || verb.startsWith("CLUSTER");
+                    || verb.equals("COLLECTION LIST") || verb.equals("COLLECTION KEYS")
+                    || verb.equals("CLUSTER INFO");
             String result = multi ? client.sendCommandMulti(wireCmd) : client.sendCommand(wireCmd);
 
             if ("USE".equals(verb) && result != null && result.contains("OK")) {

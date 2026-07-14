@@ -44,7 +44,7 @@ public class ClusterConfig {
                 ((Number) p.get("clusterPort")).intValue()
             ));
         }
-        return new ClusterConfig(nodeId, clusterPort, peers, 200, 300, 500);
+        return new ClusterConfig(nodeId, clusterPort, peers, 500, 2000, 3000);
     }
 
     public String nodeId() { return nodeId; }

@@ -69,13 +69,16 @@ public class ClusterManager implements AutoCloseable {
             }
         });
 
-        // Election timeout watcher
-        scheduler.scheduleAtFixedRate(this::checkElectionTimeout,
-                config.electionTimeoutMaxMs(), 100, TimeUnit.MILLISECONDS);
+        // 给 5 秒启动时间，防止刚启动就触发选举
+        lastHeartbeat.set(System.currentTimeMillis() + 5000);
 
-        // Heartbeat sender (leader only)
+        // Election timeout watcher — 每秒检查一次
+        scheduler.scheduleAtFixedRate(this::checkElectionTimeout,
+                3, 1, TimeUnit.SECONDS);
+
+        // Heartbeat sender (leader only) — 1 秒后开始，每 500ms 发一次
         scheduler.scheduleAtFixedRate(this::sendHeartbeats,
-                500, config.heartbeatIntervalMs(), TimeUnit.MILLISECONDS);
+                1, config.heartbeatIntervalMs(), TimeUnit.MILLISECONDS);
 
         Logger.info("Node " + config.nodeId() + " started as FOLLOWER");
     }
@@ -115,6 +118,13 @@ public class ClusterManager implements AutoCloseable {
 
         int voterCount = config.peers().size();
         int majority = voterCount / 2 + 1;
+
+        // 如果就自己一个节点或没有其他节点可达，直接当 Leader
+        int otherCount = config.otherPeers().size();
+        if (otherCount == 0) {
+            becomeLeader(term);
+            return;
+        }
 
         for (NodeInfo peer : config.otherPeers()) {
             pool.submit(() -> {
@@ -212,6 +222,7 @@ public class ClusterManager implements AutoCloseable {
                             }
                             role.set(NodeInfo.Role.FOLLOWER);
                         }
+                        out.write("ACK " + currentTerm.get()); out.newLine(); out.flush();
                         break;
                     }
                     case "VOTE_REQUEST": {
@@ -225,6 +236,8 @@ public class ClusterManager implements AutoCloseable {
                         if (grant) {
                             votedFor.set(candidateId);
                             out.write("VOTE_GRANTED " + term); out.newLine(); out.flush();
+                        } else {
+                            out.write("VOTE_DENIED " + currentTerm.get()); out.newLine(); out.flush();
                         }
                         break;
                     }
@@ -233,9 +246,9 @@ public class ClusterManager implements AutoCloseable {
                         String opData = parts.length > 2 ? parts[2] : "";
                         if (term >= currentTerm.get()) {
                             lastHeartbeat.set(System.currentTimeMillis());
-                            // Apply the operation locally
                             applyReplicatedOp(opData);
                         }
+                        out.write("ACK " + currentTerm.get()); out.newLine(); out.flush();
                         break;
                     }
                     case "FORWARD": {
