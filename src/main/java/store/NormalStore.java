@@ -41,11 +41,32 @@ public class NormalStore {
         if (lsmMode) { lsmTree.set(key, value, ttlSeconds); return; }
         long now = System.currentTimeMillis();
         long expireAt = ttlSeconds > 0 ? now + ttlSeconds * 1000L : 0L;
+        Entry.ValueType vt = detectValueType(value);
         if (persistentStore != null && !transientMode) {
-            try { persistentStore.appendSet(key, value, expireAt); }
+            try { persistentStore.appendSet(key, value, vt, expireAt); }
             catch (IOException e) { throw new RuntimeException("persist failed: " + e.getMessage(), e); }
         }
-        data.put(key, new Entry(key, value, expireAt, now));
+        data.put(key, new Entry(key, value, vt, expireAt, now));
+    }
+
+    /** Set with explicit value type (used during replay). */
+    public void setWithType(String key, String value, Entry.ValueType vt, long ttlSeconds) {
+        if (lsmMode) { lsmTree.set(key, value, ttlSeconds); return; }
+        long now = System.currentTimeMillis();
+        long expireAt = ttlSeconds > 0 ? now + ttlSeconds * 1000L : 0L;
+        if (persistentStore != null && !transientMode) {
+            try { persistentStore.appendSet(key, value, vt, expireAt); }
+            catch (IOException e) { throw new RuntimeException("persist failed: " + e.getMessage(), e); }
+        }
+        data.put(key, new Entry(key, value, vt, expireAt, now));
+    }
+
+    public static Entry.ValueType detectValueType(String value) {
+        if (value == null) return Entry.ValueType.STRING;
+        String trimmed = value.trim();
+        if (trimmed.startsWith("[") && trimmed.endsWith("]")) return Entry.ValueType.LIST;
+        if (trimmed.startsWith("{") && trimmed.endsWith("}")) return Entry.ValueType.MAP;
+        return Entry.ValueType.STRING;
     }
 
     public String get(String key) {

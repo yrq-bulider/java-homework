@@ -33,7 +33,10 @@ public class ShellClient {
 
         try (SocketClient client = new SocketClient(host, port)) {
             client.connect();
-            boolean multiLine = "KEYS".equals(cmd);
+            String paramsFirst = positional.size() >= 2 ? positional.get(1).toUpperCase() : "";
+            boolean multiLine = "KEYS".equals(cmd) || "MGET".equals(cmd)
+                    || ("COLLECTION".equals(cmd) && ("LIST".equals(paramsFirst) || "KEYS".equals(paramsFirst)))
+                    || ("CLUSTER".equals(cmd) && "INFO".equals(paramsFirst));
             String result = multiLine ? client.sendCommandMulti(wireCmd) : client.sendCommand(wireCmd);
             if (result == null) return;
             if (!silent) {

@@ -45,8 +45,13 @@ public class PersistentStore implements AutoCloseable {
     }
 
     public synchronized void appendSet(String key, String value, long expireAt) throws IOException {
+        appendSet(key, value, Entry.ValueType.STRING, expireAt);
+    }
+
+    public synchronized void appendSet(String key, String value, Entry.ValueType valueType, long expireAt) throws IOException {
         Map<String,Object> op = new LinkedHashMap<>();
         op.put("op","SET"); op.put("key", key); op.put("value", value);
+        op.put("valueType", valueType.name());
         op.put("expireAt", expireAt);
         op.put("ts", System.currentTimeMillis());
         append(JsonUtil.toJson(op));
@@ -215,7 +220,12 @@ public class PersistentStore implements AutoCloseable {
                     long expireAt = ((Number) op.get("expireAt")).longValue();
                     if (expireAt > 0 && now >= expireAt) break;     // skip expired
                     long ttl = (expireAt > 0) ? Math.max(1, (expireAt - now) / 1000) : 0;
-                    store.set(key, value, ttl);
+                    String vtStr = (String) op.get("valueType");
+                    Entry.ValueType vt = Entry.ValueType.STRING;
+                    if (vtStr != null) {
+                        try { vt = Entry.ValueType.valueOf(vtStr); } catch (IllegalArgumentException ignored) {}
+                    }
+                    store.setWithType(key, value, vt, ttl);
                     break;
                 }
                 case "DEL":   store.del((String) op.get("key")); break;

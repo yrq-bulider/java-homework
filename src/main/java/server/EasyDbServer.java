@@ -10,11 +10,13 @@ import handler.FlushHandler;
 import handler.GetHandler;
 import handler.KeysHandler;
 import handler.MdelHandler;
+import handler.MgetHandler;
 import handler.MsetHandler;
 import handler.MupdHandler;
 import handler.PingHandler;
 import handler.QuitHandler;
 import handler.SetHandler;
+import handler.TypeHandler;
 import store.Compactor;
 import store.NormalStore;
 import store.PersistentStore;
@@ -74,6 +76,7 @@ public class EasyDbServer {
         CommandDispatcher dispatcher = new CommandDispatcher(store)
                 .register(new SetHandler())
                 .register(new GetHandler())
+                .register(new MgetHandler())
                 .register(new DelHandler())
                 .register(new MsetHandler())
                 .register(new MdelHandler())
@@ -82,6 +85,7 @@ public class EasyDbServer {
                 .register(new FlushHandler())
                 .register(new KeysHandler())
                 .register(new ExistsHandler())
+                .register(new TypeHandler())
                 .register(new PingHandler())
                 .register(new QuitHandler())
                 .register(new ClusterHandler(clusterManager));
