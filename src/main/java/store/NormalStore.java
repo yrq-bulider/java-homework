@@ -64,6 +64,7 @@ public class NormalStore {
     public static Entry.ValueType detectValueType(String value) {
         if (value == null) return Entry.ValueType.STRING;
         String trimmed = value.trim();
+        if (trimmed.startsWith("(") && trimmed.endsWith(")")) return Entry.ValueType.SET;
         if (trimmed.startsWith("[") && trimmed.endsWith("]")) return Entry.ValueType.LIST;
         if (trimmed.startsWith("{") && trimmed.endsWith("}")) return Entry.ValueType.MAP;
         return Entry.ValueType.STRING;

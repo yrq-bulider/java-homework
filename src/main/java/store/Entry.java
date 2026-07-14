@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.Objects;
 
 public final class Entry {
-    public enum ValueType { STRING, LIST, MAP }
+    public enum ValueType { STRING, LIST, MAP, SET }
 
     private final String key;
     private final String value;       // JSON-encoded for LIST/MAP types

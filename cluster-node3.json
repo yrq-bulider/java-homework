@@ -1,0 +1,9 @@
+{
+  "nodeId": "node3",
+  "clusterPort": 9082,
+  "peers": [
+    {"nodeId": "node1", "host": "127.0.0.1", "port": 9091, "clusterPort": 9080},
+    {"nodeId": "node2", "host": "127.0.0.1", "port": 9092, "clusterPort": 9081},
+    {"nodeId": "node3", "host": "127.0.0.1", "port": 9093, "clusterPort": 9082}
+  ]
+}
