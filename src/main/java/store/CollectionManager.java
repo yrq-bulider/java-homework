@@ -20,10 +20,6 @@ public class CollectionManager {
         this.store = store;
     }
 
-    public Collection collection(String name) {
-        return new Collection(name, store);
-    }
-
     /** Names declared via CREATE or that currently hold at least one key. */
     public List<String> listCollections() {
         TreeSet<String> set = new TreeSet<>(loadDeclared());
@@ -34,11 +30,17 @@ public class CollectionManager {
         return new ArrayList<>(set);
     }
 
-    /** Idempotent: declare a collection so it shows up in LIST even when empty. */
-    public void createCollection(String name) {
-        if (name == null || name.isEmpty()) return;
+    /** Declare a collection. Returns true if newly created, false if it already exists. */
+    public boolean createCollection(String name) {
+        if (name == null || name.isEmpty()) return false;
+        // already in metadata?
+        if (loadDeclared().contains(name)) return false;
+        // or already has data under this prefix?
+        if (!store.keys(name + ":*").isEmpty()) return false;
         TreeSet<String> declared = new TreeSet<>(loadDeclared());
-        if (declared.add(name)) saveDeclared(new ArrayList<>(declared));
+        declared.add(name);
+        saveDeclared(new ArrayList<>(declared));
+        return true;
     }
 
     /** Remove declaration and delete every key in this collection. */

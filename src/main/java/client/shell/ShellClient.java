@@ -35,7 +35,7 @@ public class ShellClient {
             client.connect();
             String paramsFirst = positional.size() >= 2 ? positional.get(1).toUpperCase() : "";
             boolean multiLine = "KEYS".equals(cmd) || "MGET".equals(cmd)
-                    || ("COLLECTION".equals(cmd) && ("LIST".equals(paramsFirst) || "KEYS".equals(paramsFirst)))
+                    || ("COLLECTION".equals(cmd) && "LIST".equals(paramsFirst))
                     || ("CLUSTER".equals(cmd) && "INFO".equals(paramsFirst));
             String result = multiLine ? client.sendCommandMulti(wireCmd) : client.sendCommand(wireCmd);
             if (result == null) return;
@@ -83,12 +83,8 @@ public class ShellClient {
         System.out.println("  mdel <k1> <k2> ...               Multi-del");
         System.out.println("  mupd <k1> <v1> <k2> <v2> ...     Multi-update (only existing keys)");
         System.out.println("  collection list                  List all collections");
-        System.out.println("  collection create <name>         Declare a collection (idempotent)");
+        System.out.println("  collection create <name>         Declare a collection (errors if already exists)");
         System.out.println("  collection drop <name>           Delete a collection + all its keys");
-        System.out.println("  collection keys <name>           List keys in a collection");
-        System.out.println("  collection get <name> <key>      Get value from a collection");
-        System.out.println("  collection set <name> <k> <v>    Set value in a collection");
-        System.out.println("  collection del <name> <key>      Delete key from a collection");
         System.out.println("  flush                            Clear all data");
         System.out.println("  ping                             Health check");
         System.out.println("  use <name> | use *               Switch current collection (no-op in shell: each cmd is a new connection)");
