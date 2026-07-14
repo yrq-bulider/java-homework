@@ -63,12 +63,9 @@ public class CliClient {
                 // Send command
                 try {
                     String cmd = line.trim().toUpperCase();
-                    String result;
-                    if (cmd.startsWith("KEYS")) {
-                        result = client.sendCommandMulti(line);
-                    } else {
-                        result = client.sendCommand(line);
-                    }
+                    String result = isMultiLine(cmd)
+                            ? client.sendCommandMulti(line)
+                            : client.sendCommand(line);
                     if (result != null) System.out.println(result);
                 } catch (Exception e) {
                     System.err.println("(error) " + e.getMessage());
@@ -81,7 +78,15 @@ public class CliClient {
         }
     }
 
-    // NOTE: 命令列表的真相来源是 EasyDbServer.java 的 dispatcher.register(...) 链。
+    /** Whether the server's response for this command spans multiple lines (ends with *END). */
+    private static boolean isMultiLine(String cmd) {
+        if (cmd.startsWith("KEYS") || cmd.startsWith("MGET")) return true;
+        if (cmd.startsWith("COLLECTION LIST")) return true;
+        if (cmd.startsWith("CLUSTER INFO")) return true;
+        return false;
+    }
+
+// NOTE: 命令列表的真相来源是 EasyDbServer.java 的 dispatcher.register(...) 链。
     //       每加一个新 handler，请同步在这里补一行。
     private void printHelp() {
         System.out.println("Available commands:");
@@ -96,12 +101,8 @@ public class CliClient {
         System.out.println("  MDEL <k1> <k2> ...                 Multi-delete");
         System.out.println("  MUPD <k1> <v1> <k2> <v2> ...       Multi-update (existing keys only)");
         System.out.println("  COLLECTION LIST                    List all collections");
-        System.out.println("  COLLECTION CREATE <name>           Declare a collection (idempotent)");
+        System.out.println("  COLLECTION CREATE <name>           Declare a collection (errors if already exists)");
         System.out.println("  COLLECTION DROP <name>             Delete a collection + all its keys");
-        System.out.println("  COLLECTION KEYS <name>             List keys in a collection");
-        System.out.println("  COLLECTION GET <name> <key>        Get value from a collection");
-        System.out.println("  COLLECTION SET <name> <key> <v>    Set value in a collection");
-        System.out.println("  COLLECTION DEL <name> <key>        Delete key from a collection");
         System.out.println("  FLUSH                              Clear all data");
         System.out.println("  PING                               Health check");
         System.out.println("  CLUSTER INFO|ROLE|LEADER           Cluster status");

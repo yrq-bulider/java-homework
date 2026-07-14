@@ -55,7 +55,7 @@ java -jar target/easy-db-server.jar
 
 ```bash
 # 自定义端口和数据目录
-java -jar target/easy-db-server.jar --port 9090 --data ./mydata
+java -jar target/easy-db-server.jar --port 8080 --data ./mydata
 
 # 启用 LSM-Tree 存储引擎
 java -jar target/easy-db-server.jar --storage lsm
@@ -146,7 +146,7 @@ java -jar target/easy-db-server.jar --port 8080 --cluster --cluster-config ./clu
 
 ```bash
 ./easy-db-cli                   # 默认连接 127.0.0.1:8080
-./easy-db-cli 192.168.1.1 9090  # 自定义地址端口
+./easy-db-cli 192.168.1.1 8080  # 自定义地址端口
 ```
 
 交互式操作，支持命令历史和 `help`/`history`/`exit` 元命令。
